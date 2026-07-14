@@ -83,6 +83,14 @@
   .flash.ok{background:radial-gradient(circle,rgba(46,204,113,.35),transparent 60%);animation:fl .5s}
   .flash.no{background:radial-gradient(circle,rgba(255,90,106,.30),transparent 60%);animation:fl .5s}
   @keyframes fl{0%{opacity:.9}100%{opacity:0}}
+  .rules{background:#0d1633;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:14px;line-height:1.6}
+  .rules-h{font-weight:800;color:var(--pri2);margin:2px 0 6px;font-size:15px}
+  .rules-h.mt{margin-top:12px}
+  .rules ul{margin:0;padding-left:18px}
+  .rules li{margin:3px 0}
+  .rules-note{margin-top:10px;color:var(--gold);font-weight:700;font-size:13px}
+  .homelink{display:block;width:100%;margin-top:16px;background:transparent;border:1px solid var(--line);color:var(--mut);padding:12px;font-size:14px;border-radius:10px;font-weight:700;cursor:pointer}
+  .homelink:hover{color:var(--fg);border-color:var(--pri2)}
 </style>
 </head>
 <body>
@@ -174,13 +182,29 @@ function newGame(){
 /* ---------- 시작(이름 입력) ---------- */
 function renderStart(){
   const rank=loadRank();
+  const rulesHtml=`
+    <div class="rules">
+      <div class="rules-h">게임 방법</div>
+      <ul>
+        <li>국기를 보고 <b>나라 이름</b>을 맞히거나, 나라의 <b>수도</b>를 맞혀요.</li>
+        <li>4개의 보기 중 정답 하나를 고르면 됩니다.</li>
+        <li>걸린 시간이 기록되니 빠르고 정확하게 도전하세요!</li>
+      </ul>
+      <div class="rules-h mt">스테이지 (총 ${TOTAL_Q}문제)</div>
+      <ul>
+        ${STAGES.map((st,i)=>`<li><b>${st.name}</b> \u2014 ${st.q}문제 중 <b style="color:var(--gold)">${st.pass}개</b> 이상 맞히면 ${i===STAGES.length-1?'최종 승리!':'통과'}</li>`).join('')}
+      </ul>
+      <div class="rules-note">한 스테이지라도 통과하지 못하면 처음부터 다시 도전!</div>
+    </div>`;
   app.innerHTML=`
     <h1>세계 국기·수도 퀴즈</h1>
     <div class="sub">국기 100개국 · 나라/수도 맞히기 · 3스테이지</div>
+    ${rulesHtml}
     <input type="text" id="pname" maxlength="12" placeholder="플레이어 이름을 입력하세요"
            value="${state.name||''}">
     <button class="btn" id="startBtn">게임 시작</button>
     ${rank.length? `<h3 style="margin:22px 0 4px">최고 기록</h3>`+rankTable(rank,-1):''}
+    ${rank.length? `<button class="btn sec" id="resetBtn" style="margin-top:12px">기록 리셋</button>`:''}
     <div class="muted">기록은 이 브라우저에 저장됩니다.</div>
   `;
   document.getElementById('startBtn').onclick=()=>{
@@ -189,6 +213,13 @@ function renderStart(){
     newGame();
   };
   document.getElementById('pname').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('startBtn').click();});
+  const rb=document.getElementById('resetBtn');
+  if(rb) rb.onclick=()=>{
+    if(confirm('저장된 모든 기록(랭킹)을 삭제할까요? 되돌릴 수 없습니다.')){
+      localStorage.removeItem(RK);
+      renderStart();
+    }
+  };
 }
 
 function rankTable(list, meIdx){
@@ -224,8 +255,15 @@ function renderQuestion(){
     ${qhtml}
     <div class="opts" id="opts">
       ${q.options.map((o,i)=>`<button class="opt" data-i="${i}">${escapeHtml(o)}</button>`).join('')}
-    </div>`;
+    </div>
+    <button class="homelink" id="quitBtn">처음으로</button>`;
   document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(b, q));
+  document.getElementById('quitBtn').onclick=()=>{
+    if(confirm('지금 게임을 그만두고 처음 화면으로 갈까요? 진행 중인 기록은 저장되지 않습니다.')){
+      clearInterval(timerIv);
+      renderStart();
+    }
+  };
 }
 
 let timerIv=null;
