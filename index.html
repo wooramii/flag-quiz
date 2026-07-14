@@ -92,6 +92,11 @@
   .rules-note{margin-top:10px;color:var(--gold);font-weight:700;font-size:13px}
   .homelink{display:block;width:100%;margin-top:16px;background:transparent;border:1px solid var(--line);color:var(--mut);padding:12px;font-size:14px;border-radius:10px;font-weight:700;cursor:pointer}
   .homelink:hover{color:var(--fg);border-color:var(--pri2)}
+  /* 게임 화면 배경 (og-image, 투명도 80%) */
+  .card.bg-og::before{content:"";position:absolute;inset:0;
+       background:url('og-image.png') center/cover no-repeat;
+       opacity:.2;border-radius:16px;pointer-events:none;z-index:0}
+  .card.bg-og>*{position:relative;z-index:1}
 </style>
 </head>
 <body>
@@ -182,6 +187,7 @@ function newGame(){
 
 /* ---------- 시작(이름 입력) ---------- */
 function renderStart(){
+  app.classList.remove('bg-og');
   const rank=loadRank();
   const rulesHtml=`
     <div class="rules">
@@ -237,6 +243,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 
 /* ---------- 문제 화면 ---------- */
 function renderQuestion(){
+  app.classList.add('bg-og');
   const q=state.questions[state.qi];
   const st=STAGES[q.stage];
   // 스테이지 첫 문제면 스테이지 카운터 초기화 처리
@@ -302,6 +309,7 @@ function nextStep(){
 
 /* ---------- 스테이지 결과 ---------- */
 function renderStageResult(si){
+  app.classList.add('bg-og');
   const st=STAGES[si];
   const qs=state.questions.filter(q=>q.stage===si);
   const got=qs.filter(q=>q.answer===q.correct).length;
@@ -331,6 +339,7 @@ function renderStageResult(si){
 
 /* ---------- 실패 ---------- */
 function renderGameOver(table, st, got){
+  app.classList.add('bg-og');
   clearInterval(timerIv);
   const time=Date.now()-state.startAt;
   const meIdx=addRecord({name:state.name,correct:state.correct,total:TOTAL_Q,time,date:Date.now()});
@@ -356,6 +365,7 @@ function renderGameOver(table, st, got){
 
 /* ---------- 승리 ---------- */
 function renderWin(table){
+  app.classList.add('bg-og');
   clearInterval(timerIv);
   beep('win');
   const time=Date.now()-state.startAt;
