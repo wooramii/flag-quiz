@@ -24,6 +24,7 @@
        background:var(--bg);color:var(--fg);min-height:100vh}
   .wrap{max-width:860px;margin:0 auto;padding:18px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .start-banner{display:block;width:100%;height:auto;border-radius:12px;margin:0 0 16px;border:1px solid var(--line)}
   h1{font-size:26px;margin:4px 0 2px}
   .sub{color:var(--mut);font-size:14px;margin-bottom:16px}
   button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-weight:700}
@@ -197,6 +198,7 @@ function renderStart(){
       <div class="rules-note">한 스테이지라도 통과하지 못하면 처음부터 다시 도전!</div>
     </div>`;
   app.innerHTML=`
+    <img class="start-banner" src="og-image.png" alt="도훈이의 세계 수도 Song 퀴즈">
     <h1>세계 국기·수도 퀴즈</h1>
     <div class="sub">국기 100개국 · 나라/수도 맞히기 · 3스테이지</div>
     ${rulesHtml}
