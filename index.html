@@ -405,15 +405,15 @@ function renderQuestion(){
   if(q.type==='country'){
     qhtml = `<div class="flagbox"><img src="${flagURL(q.c)}" alt="국기"
          onerror="this.style.background='#334';this.alt='국기 로드 실패'"></div>
-       <div class="qtext">이 국기는 <span class="hl">어느 나라</span>일까요?</div>`;
+       <div class="qtext">이 나라의 <span class="hl">이름</span>은 무엇일까요?</div>`;
   }else if(q.type==='capital'){
     qhtml = `<div class="flagbox"><img src="${flagURL(q.c)}" alt="국기"
          onerror="this.style.background='#334'"></div>
-       <div class="qtext"><span class="hl">${q.c[0]}</span>의 수도는 어디일까요?</div>`;
+       <div class="qtext">이 나라의 <span class="hl">수도</span>는 어디일까요?</div>`;
   }else{ // continent
     qhtml = `<div class="flagbox"><img src="${flagURL(q.c)}" alt="국기"
          onerror="this.style.background='#334'"></div>
-       <div class="qtext">이 국기는 <span class="hl">어느 대륙</span>일까요?</div>`;
+       <div class="qtext">이 나라는 <span class="hl">어느 대륙</span>일까요?</div>`;
   }
   app.innerHTML=`
     <div class="top"><span>${st.name} · 통과 ${st.pass}개</span>
