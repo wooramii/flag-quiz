@@ -89,12 +89,6 @@
        padding:12px 6px;font-size:13px;font-weight:700;border-radius:10px}
   .modetab.active{background:var(--pri);border-color:var(--pri);color:#fff}
   .modetab:hover{border-color:var(--pri2)}
-  .regiontabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-  .regiontab{background:#0d1633;border:1px solid var(--line);color:var(--mut);
-       padding:10px 4px;font-size:12.5px;font-weight:700;border-radius:10px;line-height:1.3}
-  .regiontab.active{background:var(--gold);border-color:var(--gold);color:#1a1400}
-  .regiontab:hover{border-color:var(--pri2)}
-  .regiontab small{display:block;font-weight:500;opacity:.75;font-size:11px;margin-top:2px}
   .rules{background:#0d1633;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:14px;line-height:1.6}
   .rules-h{font-weight:800;color:var(--pri2);margin:2px 0 6px;font-size:15px}
   .rules-h.mt{margin-top:12px}
@@ -188,19 +182,11 @@ function pickDistractors(correct, pool, n){
   return result.slice(0,n);
 }
 
-/* 대륙별 모드처럼 오답 후보군이 좁을 때, 부족한 만큼 전체 국가에서 채워줌 */
-function pickDistractorsForPool(correct, primaryPool, n){
-  const result = pickDistractors(correct, primaryPool, n);
-  if(result.length < n){
-    const usedCodes = new Set(result.map(r=>r[2]));
-    usedCodes.add(correct[2]);
-    const extra = shuffle(COUNTRIES.filter(c=>!usedCodes.has(c[2])));
-    for(const e of extra){ if(result.length>=n) break; result.push(e); }
-  }
-  return result;
-}
-/* 문제로 낼 나라 n개를 고름. 대륙별 모드처럼 후보가 n보다 적으면
-   (예: 오세아니아 2개국) 셔플된 목록을 이어붙여 골고루 반복시켜 채움 */
+/* 대륙별 모드: 보기 4개를 전부 같은 대륙 안에서만 채울 수 있도록,
+   나라 수가 4개 미만인 대륙(오세아니아)은 이 모드에서 아예 제외 */
+const REGION_ELIGIBLE = CONTINENTS_KO.filter(r => COUNTRIES.filter(c=>continentOf(c)===r).length >= 4);
+const REGION_MODE_POOL = COUNTRIES.filter(c => REGION_ELIGIBLE.includes(continentOf(c)));
+/* 문제로 낼 나라 n개를 고름 (후보가 n보다 적을 일이 없도록 방어적으로 반복 채움) */
 function makePicks(pool, n){
   if(pool.length===0) return [];
   let result=[];
@@ -246,19 +232,19 @@ function beep(type){
 const shuffle = a => {a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 function fmtTime(ms){const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+String(s%60).padStart(2,'0');}
 
-/* ---------- 랭킹 저장 (모드/대륙별로 분리 저장) ---------- */
-function rankKey(mode, region){
+/* ---------- 랭킹 저장 (모드별로 분리 저장) ---------- */
+function rankKey(mode){
   if(mode==='continent') return "flagquiz_ranking_continent_v1";
-  if(mode==='region') return "flagquiz_ranking_region_"+(region||'아시아')+"_v1";
+  if(mode==='region') return "flagquiz_ranking_region_v1";
   return "flagquiz_ranking_v1";
 }
-function loadRank(mode, region){try{return JSON.parse(localStorage.getItem(rankKey(mode, region)))||[]}catch(e){return[]}}
-function saveRank(mode, region, list){localStorage.setItem(rankKey(mode, region), JSON.stringify(list.slice(0,20)))}
-function addRecord(mode, region, rec){
-  const list=loadRank(mode, region); list.push(rec);
+function loadRank(mode){try{return JSON.parse(localStorage.getItem(rankKey(mode)))||[]}catch(e){return[]}}
+function saveRank(mode, list){localStorage.setItem(rankKey(mode), JSON.stringify(list.slice(0,20)))}
+function addRecord(mode, rec){
+  const list=loadRank(mode); list.push(rec);
   // 정렬: 정답 많은 순 → 시간 짧은 순
   list.sort((a,b)=> b.correct-a.correct || a.time-b.time);
-  saveRank(mode, region, list);
+  saveRank(mode, list);
   return list.findIndex(r=>r===rec);
 }
 
@@ -288,16 +274,23 @@ const MODES = {
   },
   region:{
     label:"대륙별 모드 🆕",
-    rulesTitle:"게임 방법 (신규)"
+    desc:"문제마다 대륙이 무작위로 나오고, 보기는 항상 같은 대륙끼리만!",
+    rulesTitle:"게임 방법 (신규)",
+    rulesList:[
+      "문제마다 나라가 무작위로 나오는데, <b>보기 4개는 모두 정답 나라와 같은 대륙</b> 나라들로만 구성돼요.",
+      "예를 들어 정답이 유럽 나라면 오답 3개도 전부 유럽 나라예요. 대륙별 색·무늬 특징을 익히기 좋아요!",
+      "나라 수가 너무 적은 대륙(오세아니아)은 보기를 채울 수 없어서 이 모드에서는 제외돼요.",
+      "걸린 시간이 기록되니 빠르고 정확하게 도전하세요!"
+    ]
   }
 };
 
 /* ---------- 게임 생성 ---------- */
 function newGame(){
   const mode = state.mode || 'classic';
-  const region = state.region || CONTINENTS_KO[0];
-  // 대륙별 모드는 선택한 대륙의 나라만, 그 외 모드는 전체 100개국
-  const sourcePool = mode==='region' ? COUNTRIES.filter(c=>continentOf(c)===region) : COUNTRIES;
+  // 대륙별 모드는 대륙을 미리 고르지 않고, 문제마다 나라를 무작위로 뽑되
+  // 그 나라와 같은 대륙 나라들로만 보기를 구성함
+  const sourcePool = mode==='region' ? REGION_MODE_POOL : COUNTRIES;
   const picks = makePicks(sourcePool, TOTAL_Q);
   let idx=0, questions=[];
   STAGES.forEach((st,si)=>{
@@ -311,11 +304,11 @@ function newGame(){
         questions.push({c, type:'continent', correct, options, stage:si, answer:null});
       }else{
         const type = Math.random()<0.5 ? 'country' : 'capital';
-        // 대륙별 모드는 오답도 같은 대륙에서 우선 채움(부족하면 전체에서 보충)
-        const pool = sourcePool.filter(x=>x!==c);
-        const wrong = mode==='region'
-          ? pickDistractorsForPool(c, pool, 3)
-          : pickDistractors(c, pool, 3);
+        // 대륙별 모드: 오답 후보를 정답과 같은 대륙 나라로만 제한
+        const pool = mode==='region'
+          ? COUNTRIES.filter(x=>x!==c && continentOf(x)===continentOf(c))
+          : COUNTRIES.filter(x=>x!==c);
+        const wrong = pickDistractors(c, pool, 3);
         let correct, options;
         if(type==='country'){ // 국기 → 나라
           correct=c[0];
@@ -328,7 +321,7 @@ function newGame(){
       }
     }
   });
-  state={name:state.name||'', mode, region, qi:0, correct:0, questions, startAt:Date.now(),
+  state={name:state.name||'', mode, qi:0, correct:0, questions, startAt:Date.now(),
          stageCorrect:0, stageStart:0};
   renderQuestion();
 }
@@ -337,11 +330,9 @@ function newGame(){
 function renderStart(){
   app.classList.remove('bg-og');
   if(!state.mode) state.mode = 'classic';
-  if(!state.region) state.region = CONTINENTS_KO[0];
   const mode = state.mode;
-  const region = state.region;
   const m = MODES[mode];
-  const rank = loadRank(mode, region);
+  const rank = loadRank(mode);
   const modeTabs = `
     <div class="modetabs">
       ${Object.keys(MODES).map(key=>`
@@ -349,31 +340,11 @@ function renderStart(){
       `).join('')}
     </div>`;
 
-  // 대륙별 모드는 대륙 선택 서브탭 + 국가 수에 따른 설명을 추가로 보여줌
-  const regionTabs = mode!=='region' ? '' : `
-    <div class="regiontabs">
-      ${CONTINENTS_KO.map(r=>{
-        const cnt = COUNTRIES.filter(c=>continentOf(c)===r).length;
-        return `<button class="regiontab ${r===region?'active':''}" data-region="${r}">${r}<small>${cnt}개국</small></button>`;
-      }).join('')}
-    </div>`;
-
-  const regionCount = COUNTRIES.filter(c=>continentOf(c)===region).length;
-  const desc = mode==='region'
-    ? `${region} 나라 ${regionCount}개국만 모아서 · 나라/수도 맞히기`
-    : m.desc;
-  const rulesList = mode==='region' ? [
-      `<b>${region}</b> 대륙에 있는 나라들만 나와서 나라 이름 또는 수도를 맞혀요.`,
-      "4개의 보기 중 정답 하나를 고르면 됩니다. 보기도 모두 같은 대륙 나라들이라 훨씬 헷갈려요!",
-      regionCount < TOTAL_Q ? `이 대륙은 나라 수가 ${regionCount}개뿐이라 같은 나라가 두 번 이상 나올 수 있어요.` : "국가 수가 충분해서 매번 새로운 나라가 나와요.",
-      "걸린 시간이 기록되니 빠르고 정확하게 도전하세요!"
-    ] : m.rulesList;
-
   const rulesHtml=`
     <div class="rules">
       <div class="rules-h">${m.rulesTitle}</div>
       <ul>
-        ${rulesList.map(li=>`<li>${li}</li>`).join('')}
+        ${m.rulesList.map(li=>`<li>${li}</li>`).join('')}
       </ul>
       <div class="rules-h mt">스테이지 (총 ${TOTAL_Q}문제)</div>
       <ul>
@@ -384,22 +355,18 @@ function renderStart(){
   app.innerHTML=`
     <img class="start-banner" src="og-image.png" alt="도훈이의 세계 수도 Song 퀴즈">
     <h1>세계 국기·수도 퀴즈</h1>
-    <div class="sub">${desc}</div>
+    <div class="sub">${m.desc}</div>
     ${modeTabs}
-    ${regionTabs}
     ${rulesHtml}
     <input type="text" id="pname" maxlength="12" placeholder="플레이어 이름을 입력하세요"
            value="${escapeHtml(state.name||'')}">
     <button class="btn" id="startBtn">게임 시작</button>
-    ${rank.length? `<h3 style="margin:22px 0 4px">최고 기록 (${mode==='region'?region+' · ':''}${m.label})</h3>`+rankTable(rank,-1):''}
+    ${rank.length? `<h3 style="margin:22px 0 4px">최고 기록 (${m.label})</h3>`+rankTable(rank,-1):''}
     ${rank.length? `<button class="btn sec" id="resetBtn" style="margin-top:12px">이 모드 기록 리셋</button>`:''}
     <div class="muted">기록은 이 브라우저에 저장됩니다.</div>
   `;
   document.querySelectorAll('.modetab').forEach(b=>{
     b.onclick=()=>{ state.mode=b.dataset.mode; renderStart(); };
-  });
-  document.querySelectorAll('.regiontab').forEach(b=>{
-    b.onclick=()=>{ state.region=b.dataset.region; renderStart(); };
   });
   document.getElementById('startBtn').onclick=()=>{
     const v=document.getElementById('pname').value.trim();
@@ -410,7 +377,7 @@ function renderStart(){
   const rb=document.getElementById('resetBtn');
   if(rb) rb.onclick=()=>{
     if(confirm('이 모드에 저장된 기록(랭킹)을 삭제할까요? 되돌릴 수 없습니다.')){
-      localStorage.removeItem(rankKey(mode, region));
+      localStorage.removeItem(rankKey(mode));
       renderStart();
     }
   };
@@ -535,7 +502,7 @@ function renderGameOver(table, st, got){
   app.classList.add('bg-og');
   clearInterval(timerIv);
   const time=Date.now()-state.startAt;
-  const meIdx=addRecord(state.mode, state.region, {name:state.name,correct:state.correct,total:TOTAL_Q,time,date:Date.now()});
+  const meIdx=addRecord(state.mode, {name:state.name,correct:state.correct,total:TOTAL_Q,time,date:Date.now()});
   app.innerHTML=`
     <div class="center">
       <div class="big lose">처음부터 다시해볼까?</div>
@@ -547,7 +514,7 @@ function renderGameOver(table, st, got){
     </div>
     ${table}
     <h3 style="margin:20px 0 4px">최고 기록</h3>
-    ${rankTable(loadRank(state.mode, state.region), meIdx)}
+    ${rankTable(loadRank(state.mode), meIdx)}
     <div class="row2">
       <button class="btn" id="retry">다시 도전</button>
       <button class="btn sec" id="home">처음 화면</button>
@@ -562,8 +529,8 @@ function renderWin(table){
   clearInterval(timerIv);
   beep('win');
   const time=Date.now()-state.startAt;
-  const meIdx=addRecord(state.mode, state.region, {name:state.name,correct:state.correct,total:TOTAL_Q,time,date:Date.now()});
-  const best=loadRank(state.mode, state.region)[0];
+  const meIdx=addRecord(state.mode, {name:state.name,correct:state.correct,total:TOTAL_Q,time,date:Date.now()});
+  const best=loadRank(state.mode)[0];
   const isBest = best && best.name===state.name && best.correct===state.correct && best.time===time && meIdx===0;
   app.innerHTML=`
     <div class="center">
@@ -577,7 +544,7 @@ function renderWin(table){
     </div>
     ${table}
     <h3 style="margin:20px 0 4px">최고 기록</h3>
-    ${rankTable(loadRank(state.mode, state.region), meIdx)}
+    ${rankTable(loadRank(state.mode), meIdx)}
     <div class="row2">
       <button class="btn" id="again">새로운 게임 하기</button>
       <button class="btn sec" id="home">처음 화면</button>
